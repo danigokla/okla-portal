@@ -90,7 +90,7 @@ input[type=checkbox],input[type=radio]{width:16px;height:16px;flex-shrink:0;acce
 .dk{font-size:12px;color:var(--fg3);flex-shrink:0}
 .dv{font-size:13px;color:var(--fg);text-align:right;max-width:65%;line-height:1.5}
 .tag{display:inline-block;font-size:11px;padding:.12rem .45rem;border-radius:2px;background:var(--bg3);color:var(--fg2);margin:.1rem}
-.bb{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:1rem;font-family:var(--mono);font-size:12px;color:var(--fg2);line-height:1.75;white-space:pre-wrap;max-height:240px;overflow-y:auto;margin-top:.5rem}
+.bb{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:1rem;font-family:var(--mono);font-size:12px;color:var(--fg2);line-height:1.75;white-space:pre-wrap;max-height:240px;overflow-y:auto;margin-top:.5rem}
 .badge{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .6rem;border-radius:99px;border:1px solid rgba(201,169,110,.4);color:var(--accent)}
 .ft{padding:1.4rem 2.5rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--fg3);flex-wrap:wrap;gap:.4rem}
 .dv2{height:1px;background:var(--border);margin:1.75rem 0}
@@ -132,16 +132,19 @@ input[type=checkbox],input[type=radio]{width:16px;height:16px;flex-shrink:0;acce
 .ai-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem 1.4rem;border-bottom:1px solid var(--border);flex-shrink:0}
 .ai-chip{font-size:11px;padding:.3rem .7rem;border-radius:99px;border:1px solid var(--border2);color:var(--fg2);cursor:pointer;transition:all .15s;background:transparent}
 .ai-chip:hover{border-color:var(--accent2);color:var(--accent);background:rgba(201,169,110,.07)}
-.ai-bar{padding:.75rem 1.4rem;border-top:1px solid var(--border);background:rgba(201,169,110,.06);flex-shrink:0;display:none}
-.ai-bar.show{display:block}
-.ai-apply{width:100%;justify-content:center;background:var(--accent);color:#0c0b09;border-color:var(--accent)}
+.ai-bar{padding:.75rem 1.4rem;border-top:1px solid var(--border);background:rgba(201,169,110,.06);flex-shrink:0;display:none;flex-direction:column;gap:.5rem}
+.ai-bar.show{display:flex}
+.ai-apply{width:100%;justify-content:center;background:var(--accent);color:#0c0b09;border-color:var(--accent);font-size:13px;padding:.75rem}
 .ai-apply:hover{background:#ddc080}
+.ai-apply-sub{width:100%;justify-content:center;font-size:12px;color:var(--fg3);border-color:var(--border)}
+.ai-apply-sub:hover{color:var(--fg);background:var(--bg3)}
 .ai-row{padding:1rem 1.4rem;border-top:1px solid var(--border);display:flex;gap:.6rem;flex-shrink:0}
 .ai-inp{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--fg);padding:.65rem .9rem;border-radius:var(--r);font-size:13px;outline:none;resize:none;min-height:42px;max-height:120px;font-family:var(--sans)}
 .ai-inp:focus{border-color:var(--accent2)}
 .ai-inp::placeholder{color:var(--fg3)}
 .ai-send{background:var(--accent);color:#0c0b09;border:none;border-radius:var(--r);padding:.65rem .9rem;cursor:pointer;font-size:13px;flex-shrink:0}
 .ai-send:hover{background:#ddc080}.ai-send:disabled{opacity:.4;cursor:not-allowed}
+.ai-progress{font-size:11px;color:var(--fg3);text-align:center;padding:.3rem 0}
 .ph-print{display:none}
 @media print{
 body{background:#fff!important;color:#111!important}
@@ -287,15 +290,27 @@ body{background:#fff!important;color:#111!important}
   <div class="ai-chips" id="ai-chips"></div>
   <div class="ai-msgs" id="ai-msgs"></div>
   <div class="ai-bar" id="ai-bar">
+    <div class="ai-progress" id="ai-progress"></div>
     <button class="AI ai-apply" id="btn-apply">&#10003; Aplicar sugerencias al formulario</button>
+    <button class="ai-apply-sub" id="btn-apply-skip" style="display:none">Saltar este paso</button>
   </div>
   <div class="ai-row">
     <textarea class="ai-inp" id="ai-inp" placeholder="Describ&iacute; tu proyecto..." rows="1"></textarea>
     <button class="ai-send" id="btn-send">&#9654;</button>
   </div>
 </div>
+
 <script>
 var KEY="okla_v5",STEPS=4,step=1,fd={},editCode=null,lastCode=null,aiCtx="",aiPending=null,aiHist=[];
+
+// AI guided flow state for s3
+var aiFlow={
+  phase: 0, // 0=piezas, 1=formatos, 2=canales, 3=done
+  piezasSugeridas: null,
+  formatosSugeridos: [],
+  canalesSugeridos: []
+};
+
 var TIPOS=[
   {id:"Video institucional / corporativo",t:"Video institucional",s:"Branding, identidad, uso corporativo"},
   {id:"Video de producto",t:"Video de producto",s:"E-commerce, PDP, demos, explainers"},
@@ -310,6 +325,7 @@ var TC=["Reel / video corto","Video institucional","Video de producto","Video te
 var SECTS=["Agroindustria","Automotriz","Consumo masivo","Construcción","Salud","Gobierno / Municipal","Tecnología","Otro"];
 var FMTS=["Horizontal 16:9","Cuadrado 1:1","Vertical 9:16"];
 var CANS=["LinkedIn","Instagram / Reels","YouTube","Web corporativa","Presentaciones / ferias","Comunicación interna","Pauta digital","WhatsApp Business"];
+
 function ge(id){return document.getElementById(id);}
 function g(id){var e=ge(id);return e?(e.value||"").trim():"";}
 function chk(n){return Array.from(document.querySelectorAll("input[name='"+n+"']:checked")).map(function(c){return c.value;});}
@@ -436,6 +452,7 @@ function renderStep(){
   });
   bindDel();
 }
+
 function cHTML(arr){
   if(!arr||!arr.length)return'<div style="font-size:13px;color:var(--fg3);padding:.65rem 0;font-style:italic">Todavía no agregaste ninguna pieza.</div>';
   var h="",i,it;
@@ -451,6 +468,7 @@ function cHTML(arr){
   }
   return h;
 }
+
 function bindDel(){
   var l=ge("c-lista");if(!l)return;
   l.addEventListener("click",function(e){
@@ -460,11 +478,13 @@ function bindDel(){
     updCart();
   });
 }
+
 function updCart(){
   var l=ge("c-lista"),cc=ge("cc"),arr=fd.carrito||[];
   if(cc)cc.textContent=arr.length===0?"(vacío)":"("+arr.length+" tipo"+(arr.length>1?"s":"")+")";
   if(l){l.innerHTML=cHTML(arr);bindDel();}
 }
+
 function addItem(){
   var t=g("add-tipo"),c=parseInt(ge("add-cant")?ge("add-cant").value:"1")||1,d=ge("add-dur")?ge("add-dur").value.trim():"";
   if(!t){alert("Selecioná el tipo de contenido.");return;}
@@ -475,6 +495,7 @@ function addItem(){
   var ad=ge("add-dur");if(ad)ad.value="";
   updCart();
 }
+
 function fmtPH(m){return m==="ARS"?"Ej: 5.000.000":"Ej: 5.000";}
 function fmtPrev(m,raw){
   var n=parseInt((raw||"").replace(/[^0-9]/g,""),10);
@@ -517,6 +538,7 @@ function cQ2(){
 }
 function cQ3(){return!!(fd.ciudad||fd.fecha||((fd.detalles||"").match(/locaci|lugar|estudi|exterior|interior|fecha|cuando|dónde|donde/i)));}
 function cQ4(){return!!(fd.objetivo&&fd.objetivo.length>30&&fd.canales&&fd.canales.length>0);}
+
 function showPrev(){
   saveStep();
   var d=fd,carr=d.carrito||[],q1=cQ1(),q2=cQ2(),q3=cQ3(),q4=cQ4();
@@ -552,16 +574,16 @@ function showPrev(){
   H.push("<div style=\"display:flex;gap:.6rem;flex-wrap:wrap\"><button class=\"SM\" id=\"btn-pdf\">Descargar PDF</button><button class=\"P\" id=\"btn-sf\">Confirmar y enviar &rarr;</button></div></div>");
   H.push("<div class=\"qs "+cls+"\"><span style=\"font-size:18px\">"+(sc===4?"&#10003;":sc>=2?"&#9651;":"&#9679;")+"</span><span>"+sc+"/4 &mdash; "+msg+"</span></div>");
   H.push("<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:2rem\">");
-  H.push(qa(q1,"Piezas definidas en el pedido","Agre g\u00e1 piezas al carrito en el paso 3"));
-  H.push(qa(q2,"Qui\u00e9n aparece en c\u00e1mara y qu\u00e9 recursos se necesitan","Mencion\u00e1 esto en detalles adicionales"));
-  H.push(qa(q3,"Ciudad y fecha de producci\u00f3n definidas","Complet\u00e1 ciudad y fecha estimada"));
-  H.push(qa(q4,"Canal y objetivo del contenido claros","Selecion\u00e1 al menos un canal y explic\u00e1 el objetivo"));
+  H.push(qa(q1,"Piezas definidas en el pedido","Agregá piezas al carrito en el paso 3"));
+  H.push(qa(q2,"Quién aparece en cámara y qué recursos se necesitan","Mencioná esto en detalles adicionales"));
+  H.push(qa(q3,"Ciudad y fecha de producción definidas","Completá ciudad y fecha estimada"));
+  H.push(qa(q4,"Canal y objetivo del contenido claros","Seleccioná al menos un canal y explicá el objetivo"));
   H.push("</div>");
   H.push("<div class=\"ps\"><div class=\"ps-t\">Datos del cliente</div>"+pa("Nombre",d.nombre)+pa("Empresa",d.empresa)+pa("Email",d.email)+pa("Sector",d.sector)+pa("Ciudad",d.ciudad)+"</div>");
   H.push("<div class=\"ps\"><div class=\"ps-t\">Proyecto</div>"+pa("Tipo",d.tipo)+pa("Audiencia",d.audiencia)+(d.objetivo?"<div class=\"pr\"><span class=\"pk\">Objetivo</span><span class=\"pv\" style=\"line-height:1.7\">"+xh(d.objetivo)+"</span></div>":"")+"</div>");
   H.push(cp);
   H.push("<div class=\"ps\"><div class=\"ps-t\">Entregables</div>"+pa("Budget",d.budget)+pa("Fecha",d.fecha)+pta("Formatos",d.formatos)+pta("Canales",d.canales)+"</div>");
-  if(d.detalles)H.push("<div class=\"ps\"><div class=\"ps-t\">Informaci\u00f3n adicional</div><div style=\"font-size:13px;color:var(--fg2);line-height:1.75;white-space:pre-wrap\">"+xh(d.detalles)+"</div></div>");
+  if(d.detalles)H.push("<div class=\"ps\"><div class=\"ps-t\">Información adicional</div><div style=\"font-size:13px;color:var(--fg2);line-height:1.75;white-space:pre-wrap\">"+xh(d.detalles)+"</div></div>");
   H.push("<div class=\"no-print\" style=\"display:flex;gap:.75rem;margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);flex-wrap:wrap;justify-content:space-between;align-items:center\">");
   H.push("<button class=\"G\" id=\"btn-ef\">&#8592; Volver a editar</button>");
   H.push("<div style=\"display:flex;gap:.6rem\"><button class=\"SM\" id=\"btn-pdf2\">Descargar PDF</button><button class=\"P\" id=\"btn-sf2\">Confirmar y enviar &rarr;</button></div></div>");
@@ -571,6 +593,7 @@ function showPrev(){
   bn("btn-ef",function(){step=1;renderStep();go("v-form");});
   go("v-prev");
 }
+
 function buildBrief(){
   var d=fd,b="=== BRIEF DE PROYECTO - OKLA COMPANY ===\n\n";
   b+="-- CLIENTE\nNombre: "+(d.nombre||"-")+"\nEmpresa: "+(d.empresa||"-")+"\nEmail: "+(d.email||"-")+"\nSector: "+(d.sector||"-")+"\nCiudad: "+(d.ciudad||"-")+"\n\n";
@@ -581,11 +604,13 @@ function buildBrief(){
   b+="-- DETALLES ADICIONALES\n"+(d.detalles||"Sin información adicional");
   return b;
 }
+
 function genCode(){
   var ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",c="OKL-",i;
   for(i=0;i<6;i++)c+=ch[Math.floor(Math.random()*ch.length)];
   return c;
 }
+
 function submitProj(){
   fd.brief=buildBrief();fd.fecha_carga=new Date().toISOString();
   var p=loadDB(),code=editCode||genCode();
@@ -593,12 +618,15 @@ function submitProj(){
   p[code]=JSON.parse(JSON.stringify(fd));saveDB(p);
   ge("conf-code").textContent=code;go("v-confirm");
 }
+
 function copyCod(){
   navigator.clipboard.writeText(ge("conf-code").textContent).catch(function(){});
   var btn=ge("btn-copy-code"),prev=btn.textContent;
   btn.textContent="Copiado!";setTimeout(function(){btn.textContent=prev;},2200);
 }
+
 function verProj(){if(lastCode){var p=loadDB();if(p[lastCode])showProj(lastCode,p[lastCode]);}}
+
 function buscar(){
   var inp=ge("ret-input"),code=inp?inp.value.trim().toUpperCase():"",err=ge("ret-err");
   if(!code){err.textContent="Ingresá un código.";err.style.display="block";return;}
@@ -606,6 +634,7 @@ function buscar(){
   if(p[code]){err.style.display="none";showProj(code,p[code]);}
   else{err.textContent="Código no encontrado. Verificá e intentá de nuevo.";err.style.display="block";}
 }
+
 function showProj(code,data){
   go("v-proj");
   var d=data,fecha=d.fecha_carga?new Date(d.fecha_carga).toLocaleDateString("es-AR",{day:"2-digit",month:"long",year:"numeric"}):"-";
@@ -616,8 +645,8 @@ function showProj(code,data){
   ge("proj-body").innerHTML=
     '<div class="ph"><div><div style="font-size:10px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem">'+code+"</div>"+
     '<div class="pn">'+xs(d.empresa||"Proyecto")+"</div>"+
-    '<div class="pm">Cargado el '+fecha+' &middot; <span class="badge">Nuevo</span></div></div>'+ 
-    '<div style="display:flex;gap:.55rem;flex-wrap:wrap"><button id="btn-ep">Modificar</button><button class="P SM" id="btn-cb">Copiar brief</button></div></div>'+ 
+    '<div class="pm">Cargado el '+fecha+' &middot; <span class="badge">Nuevo</span></div></div>'+
+    '<div style="display:flex;gap:.55rem;flex-wrap:wrap"><button id="btn-ep">Modificar</button><button class="P SM" id="btn-cb">Copiar brief</button></div></div>'+
     '<div class="card"><div class="ct">Datos del cliente</div>'+r("Nombre",d.nombre)+r("Empresa",d.empresa)+r("Email",d.email)+r("Sector",d.sector)+r("Ciudad",d.ciudad)+"</div>"+
     '<div class="card"><div class="ct">Proyecto</div>'+r("Tipo",d.tipo)+r("Audiencia",d.audiencia)+(d.objetivo?'<div class="dr" style="flex-direction:column;align-items:flex-start;gap:.35rem"><span class="dk">Objetivo</span><span style="font-size:13px;color:var(--fg);line-height:1.7">'+xs(d.objetivo)+"</span></div>":"")+"</div>"+
     cc+
@@ -628,27 +657,43 @@ function showProj(code,data){
   bn("btn-ep",function(){editProj(code);});bn("btn-cb",function(){copyBrief(code);});
   bn("btn-ep2",function(){editProj(code);});bn("btn-cb2",function(){copyBrief(code);});
 }
+
 function editProj(code){var p=loadDB();if(p[code]){fd=JSON.parse(JSON.stringify(p[code]));initForm(code);}}
+
 function copyBrief(code){
   var p=loadDB();if(!p[code])return;
   navigator.clipboard.writeText(p[code].brief||"").catch(function(){});
   var btn=event.target,prev=btn.textContent;btn.textContent="Copiado!";setTimeout(function(){btn.textContent=prev;},2200);
 }
+
+// =====================
+// AI ASSISTANT
+// =====================
+
 var CHIPS={
   s2:["No se bien que tipo de video necesito","Tengo un evento que quiero registrar","Quiero lanzar un producto","Necesito contenido para redes","Quiero un video que genere ventas"],
   s3:["No se que piezas pedir","Es para Instagram y LinkedIn","Necesito contenido para e-commerce","Es para un evento corporativo","Quiero algo para pauta digital"],
   s4:["Revisar si falta informacion","Tenemos locacion y fechas definidas","Necesitamos actores y locutor","Tenemos el material grafico listo","Aun no tenemos todo definido"]
 };
-function sysPrompt(ctx){
-  var base="Sos el asistente de Okla Company, productora audiovisual argentina especializada en videos institucionales, activaciones de marca, contenido para redes y campanas de lanzamiento. Ayudas al cliente a definir su proyecto para que Okla pueda presupuestarlo. Responde en espanol, maximo 3 oraciones, sin bullets.";
+
+function buildCtxInfo(){
   var info="";
   if(fd.empresa)info+="Empresa: "+fd.empresa+". ";
   if(fd.sector)info+="Sector: "+fd.sector+". ";
   if(fd.tipo)info+="Tipo de proyecto: "+fd.tipo+". ";
-  if(fd.objetivo)info+="Objetivo: "+fd.objetivo+". ";
+  if(fd.objetivo)info+="Objetivo del proyecto: "+fd.objetivo+". ";
+  if(fd.audiencia)info+="Audiencia: "+fd.audiencia+". ";
   if(fd.carrito&&fd.carrito.length)info+="Piezas ya agregadas: "+fd.carrito.map(function(i){return i.cant+"x "+i.tipo;}).join(", ")+". ";
-  if(ctx==="s2")return base+" Contexto: "+info+" Haz UNA pregunta concisa para entender que tipo de produccion necesitan, o sugeriles directamente el tipo si ya hay suficiente info.";
-  if(ctx==="s3")return base+" Contexto: "+info+" Sugiere que piezas concretas deberian producir con cantidad y duracion estimada. Usa formato: 2x Reel (30 seg), 1x Video institucional (2 min).";
+  return info;
+}
+
+function sysPrompt(ctx){
+  var base="Sos el asistente de Okla Company, productora audiovisual argentina especializada en videos institucionales, activaciones de marca, contenido para redes y campanas de lanzamiento. Ayudas al cliente a definir su proyecto para que Okla pueda presupuestarlo. Responde en espanol, maximo 3 oraciones, sin bullets.";
+  var info=buildCtxInfo();
+  if(ctx==="s2")return base+" Contexto del cliente: "+info+" Haz UNA pregunta concisa para entender que tipo de produccion necesitan, o sugeriles directamente el tipo si ya hay suficiente info.";
+  if(ctx==="s3")return base+" IMPORTANTE: Ya tenes toda la informacion del proyecto del cliente. NO preguntes de que se trata el proyecto. Contexto: "+info+" Con esta informacion, sugiere DIRECTAMENTE que piezas concretas deberian producir con cantidad y duracion estimada, sin pedir mas info. Usa EXACTAMENTE este formato: 2x Reel / video corto (30 seg), 1x Video institucional (2 min). Usa solo tipos de esta lista: Reel / video corto, Video institucional, Video de producto, Video testimonial, Animacion 2D, Motion graphics, Cobertura de evento, Fotografia de producto, Fotografia corporativa, Pack contenido redes, Contenido para pauta digital, Story / vertical.";
+  if(ctx==="s3-formatos")return base+" Contexto: "+info+" El cliente ya definio las piezas. Ahora preguntale en UNA sola pregunta si ya tiene definido en que formatos necesita los entregables: Horizontal 16:9, Cuadrado 1:1 o Vertical 9:16. Menciona que puede necesitar varios formatos segun donde lo use.";
+  if(ctx==="s3-canales")return base+" Contexto: "+info+" El cliente ya definio piezas y formatos. Ahora preguntale en UNA sola pregunta donde va a usar el contenido. Las opciones son: LinkedIn, Instagram / Reels, YouTube, Web corporativa, Presentaciones / ferias, Comunicacion interna, Pauta digital, WhatsApp Business. Puede elegir varios.";
   var gaps=[];
   if(!cQ1())gaps.push("no hay piezas definidas");
   if(!cQ2())gaps.push("falta saber quien aparece en camara");
@@ -657,8 +702,47 @@ function sysPrompt(ctx){
   if(ctx==="s4")return base+" Contexto: "+info+" Gaps detectados: "+(gaps.length?gaps.join(", "):"brief completo")+". Haz UNA pregunta especifica para obtener la info mas importante que falta. Si no hay gaps, felicitalos.";
   return base;
 }
+
+function updateApplyButton(){
+  var bar=ge("ai-bar"),prog=ge("ai-progress"),applyBtn=ge("btn-apply"),skipBtn=ge("btn-apply-skip");
+  if(!bar)return;
+  if(aiCtx!=="s3"){
+    if(aiPending){bar.classList.add("show");}
+    else{bar.classList.remove("show");}
+    if(prog)prog.textContent="";
+    if(skipBtn)skipBtn.style.display="none";
+    return;
+  }
+  // s3 guided flow
+  var phase=aiFlow.phase;
+  if(phase===0&&aiFlow.piezasSugeridas){
+    bar.classList.add("show");
+    if(prog)prog.textContent="Paso 1 de 3 — Piezas sugeridas";
+    if(applyBtn)applyBtn.textContent="✓ Aplicar piezas al pedido";
+    if(skipBtn)skipBtn.style.display="none";
+  } else if(phase===1){
+    bar.classList.add("show");
+    if(prog)prog.textContent="Paso 2 de 3 — Formatos";
+    if(applyBtn)applyBtn.textContent="✓ Aplicar formatos seleccionados";
+    if(skipBtn){skipBtn.style.display="flex";skipBtn.textContent="No tengo definido aún";}
+  } else if(phase===2){
+    bar.classList.add("show");
+    if(prog)prog.textContent="Paso 3 de 3 — Canales de distribución";
+    if(applyBtn)applyBtn.textContent="✓ Aplicar canales y cerrar";
+    if(skipBtn){skipBtn.style.display="flex";skipBtn.textContent="No tengo definido aún";}
+  } else if(phase===3){
+    bar.classList.remove("show");
+  } else {
+    bar.classList.remove("show");
+  }
+}
+
 function openAI(ctx){
   saveStep();aiCtx=ctx;aiHist=[];aiPending=null;
+  // Reset guided flow for s3
+  if(ctx==="s3"){
+    aiFlow={phase:0,piezasSugeridas:null,formatosSugeridos:[],canalesSugeridos:[]};
+  }
   var chips=CHIPS[ctx]||[],chipsEl=ge("ai-chips");
   chipsEl.innerHTML="";
   chips.forEach(function(chip){
@@ -672,74 +756,304 @@ function openAI(ctx){
   ge("ai-ov").classList.add("open");
   ge("ai-dr").classList.add("open");
   showLoad();
-  callAI([{role:"user",content:sysPrompt(ctx)}]).then(function(r){rmLoad();addMsg(r,"bot");aiHist.push({role:"assistant",content:r});}).catch(function(){rmLoad();addMsg("Hola! Contame sobre tu proyecto y te ayudo a definirlo.","bot");});
+  var initMsgs;
+  if(ctx==="s3"){
+    // Use proper conversation structure so IA uses context directly
+    initMsgs=[
+      {role:"user",content:sysPrompt(ctx)},
+      {role:"assistant",content:"Entendido, voy a sugerir las piezas directamente basandome en el proyecto."},
+      {role:"user",content:"Por favor, sugerime las piezas concretas para este proyecto."}
+    ];
+  } else {
+    initMsgs=[{role:"user",content:sysPrompt(ctx)}];
+  }
+  callAI(initMsgs).then(function(r){
+    rmLoad();
+    addMsg(r,"bot");
+    aiHist.push({role:"assistant",content:r});
+    if(ctx==="s3"){
+      // Check if response has piece suggestions
+      if(parsePiezas(r).length>0){
+        aiFlow.piezasSugeridas=r;
+        aiFlow.phase=0;
+        updateApplyButton();
+      }
+    }
+  }).catch(function(){
+    rmLoad();
+    addMsg("Hola! Contame sobre tu proyecto y te ayudo a definirlo.","bot");
+  });
 }
+
 function closeAI(){
   ge("ai-ov").classList.remove("open");
   ge("ai-dr").classList.remove("open");
 }
+
 function addMsg(text,role){
   var msgs=ge("ai-msgs"),div=document.createElement("div");
   div.className="ai-msg "+role;div.textContent=text;
   msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
-  if(role==="bot"&&canApply(text)){aiPending={text:text,ctx:aiCtx};ge("ai-bar").classList.add("show");}
+  if(role==="bot"&&aiCtx!=="s3"){
+    if(canApply(text)){aiPending={text:text,ctx:aiCtx};updateApplyButton();}
+  }
 }
+
 function showLoad(){
   var msgs=ge("ai-msgs"),div=document.createElement("div");
   div.className="ai-msg bot";div.id="ai-ld";
   div.innerHTML='<div class="ai-dots"><span></span><span></span><span></span></div>';
   msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
 }
+
 function rmLoad(){var e=ge("ai-ld");if(e)e.remove();}
+
 function canApply(text){
   if(aiCtx==="s2"){for(var i=0;i<TIPOS.length;i++){if(text.toLowerCase().indexOf(TIPOS[i].t.toLowerCase())>=0)return true;}}
   if(aiCtx==="s3")return!!(text.match(/\d+x|\d+ reel|\d+ video|\d+ foto/i));
   if(aiCtx==="s4")return text.length>30;
   return false;
 }
-function applyAI(){
-  if(!aiPending)return;
-  var text=aiPending.text,ctx=aiPending.ctx;
-  if(ctx==="s2"){
-    for(var i=0;i<TIPOS.length;i++){
-      if(text.toLowerCase().indexOf(TIPOS[i].t.toLowerCase())>=0){
-        fd.tipo=TIPOS[i].id;
-        document.querySelectorAll(".tc").forEach(function(c){c.classList.remove("sel");});
-        var card=document.querySelector("[data-idx=\""+i+"\"]");
-        if(card)card.classList.add("sel");
-        break;
+
+// Parse piezas from AI text
+function parsePiezas(text){
+  var items=[],m,pat=/([0-9]+)x\s+([^,(\n]+?)(?:\s*\(([^)]+)\))?(?=[,\n]|$)/gi;
+  pat.lastIndex=0;
+  while((m=pat.exec(text))!==null){
+    var cant=parseInt(m[1]),tipRaw=(m[2]||"").trim(),dur=(m[3]||"").trim(),matched="";
+    for(var j=0;j<TC.length;j++){
+      if(TC[j].toLowerCase().indexOf(tipRaw.toLowerCase().split(" ")[0])>=0||
+         tipRaw.toLowerCase().indexOf(TC[j].toLowerCase().split(" ")[0])>=0){
+        matched=TC[j];break;
       }
     }
-  }
-  if(ctx==="s3"){
-    if(!fd.carrito)fd.carrito=[];
-    var m,pat=/([0-9]+)x\s+([^,(\n]+?)(?:\s*\(([^)]+)\))?(?:,|$)/gi;
-    pat.lastIndex=0;
-    while((m=pat.exec(text))!==null){
-      var cant=parseInt(m[1]),tipRaw=(m[2]||"").trim(),dur=(m[3]||"").trim(),matched="";
-      for(var j=0;j<TC.length;j++){if(TC[j].toLowerCase().indexOf(tipRaw.toLowerCase().split(" ")[0])>=0){matched=TC[j];break;}}
-      if(matched&&cant>0&&cant<50)fd.carrito.push({tipo:matched,cant:cant,duracion:dur});
+    if(!matched){
+      // fuzzy: try first word of tipRaw against first word of each TC
+      var w=tipRaw.toLowerCase().replace(/[^a-záéíóúñ]/g," ").trim().split(" ")[0];
+      for(var k=0;k<TC.length;k++){if(TC[k].toLowerCase().indexOf(w)>=0){matched=TC[k];break;}}
     }
-    updCart();
+    if(matched&&cant>0&&cant<50)items.push({tipo:matched,cant:cant,duracion:dur});
   }
-  if(ctx==="s4"){
-    var det=ge("f-detalles");
-    if(det&&!det.value.trim()){det.value="Info relevante: "+text;fd.detalles=det.value;}
-  }
-  ge("ai-bar").classList.remove("show");aiPending=null;
-  addMsg("Listo! Aplique las sugerencias al formulario. Revisa y ajusta lo que necesites.","bot");
+  return items;
 }
+
+// Parse formatos from user response
+function parseFormatos(text){
+  var found=[];
+  var t=text.toLowerCase();
+  if(t.match(/horizontal|16.9|paisaje/))found.push("Horizontal 16:9");
+  if(t.match(/cuadrado|1.1|square/))found.push("Cuadrado 1:1");
+  if(t.match(/vertical|9.16|reel|story|stories/))found.push("Vertical 9:16");
+  if(t.match(/todos|all|los tres|ambos|cualquier/)){found=["Horizontal 16:9","Cuadrado 1:1","Vertical 9:16"];}
+  return found;
+}
+
+// Parse canales from user response
+function parseCanales(text){
+  var found=[];
+  var t=text.toLowerCase();
+  if(t.match(/linkedin/))found.push("LinkedIn");
+  if(t.match(/instagram|reel/))found.push("Instagram / Reels");
+  if(t.match(/youtube|yt/))found.push("YouTube");
+  if(t.match(/web|site|sitio/))found.push("Web corporativa");
+  if(t.match(/presentaci|feria|expo|stand/))found.push("Presentaciones / ferias");
+  if(t.match(/interna|interno|empleado|staff/))found.push("Comunicación interna");
+  if(t.match(/pauta|ads|pago|paid/))found.push("Pauta digital");
+  if(t.match(/whatsapp|wsp|wa\b/))found.push("WhatsApp Business");
+  if(t.match(/todos|redes|social/i)&&found.length===0){found=["LinkedIn","Instagram / Reels","Pauta digital"];}
+  return found;
+}
+
+// Apply piezas to cart
+function applyPiezas(text){
+  if(!fd.carrito)fd.carrito=[];
+  var items=parsePiezas(text);
+  items.forEach(function(it){fd.carrito.push(it);});
+  updCart();
+  return items.length;
+}
+
+// Apply formatos to checkboxes
+function applyFormatos(arr){
+  if(!arr||!arr.length)return;
+  fd.formatos=arr;
+  document.querySelectorAll("input[name='fmt']").forEach(function(cb){
+    cb.checked=arr.indexOf(cb.value)>=0;
+  });
+}
+
+// Apply canales to checkboxes
+function applyCanales(arr){
+  if(!arr||!arr.length)return;
+  fd.canales=arr;
+  document.querySelectorAll("input[name='canal']").forEach(function(cb){
+    cb.checked=arr.indexOf(cb.value)>=0;
+  });
+}
+
+function applyAI(){
+  if(aiCtx!=="s3"){
+    // Original logic for s2 and s4
+    if(!aiPending)return;
+    var text=aiPending.text,ctx=aiPending.ctx;
+    if(ctx==="s2"){
+      for(var i=0;i<TIPOS.length;i++){
+        if(text.toLowerCase().indexOf(TIPOS[i].t.toLowerCase())>=0){
+          fd.tipo=TIPOS[i].id;
+          document.querySelectorAll(".tc").forEach(function(c){c.classList.remove("sel");});
+          var card=document.querySelector("[data-idx=\""+i+"\"]");
+          if(card)card.classList.add("sel");
+          break;
+        }
+      }
+    }
+    if(ctx==="s4"){
+      var det=ge("f-detalles");
+      if(det&&!det.value.trim()){det.value="Info relevante: "+text;fd.detalles=det.value;}
+    }
+    ge("ai-bar").classList.remove("show");aiPending=null;
+    addMsg("Listo! Apliqué las sugerencias al formulario. Revisá y ajustá lo que necesites.","bot");
+    return;
+  }
+
+  // S3 guided flow
+  var phase=aiFlow.phase;
+
+  if(phase===0){
+    // Apply piezas
+    var n=applyPiezas(aiFlow.piezasSugeridas);
+    if(n>0){
+      addMsg("Perfecto! Agregué "+n+" tipo"+(n>1?"s":"")+" de piezas a tu pedido. Ahora una pregunta sobre los formatos...","bot");
+    }
+    aiFlow.phase=1;
+    // Ask about formatos
+    showLoad();
+    callAI([{role:"user",content:sysPrompt("s3-formatos")}]).then(function(r){
+      rmLoad();
+      addMsg(r,"bot");
+      aiHist.push({role:"assistant",content:r});
+      updateApplyButton();
+    }).catch(function(){
+      rmLoad();
+      addMsg("¿En qué formatos necesitás los entregables? Horizontal 16:9, Cuadrado 1:1 o Vertical 9:16. Podés pedir varios.","bot");
+      updateApplyButton();
+    });
+    return;
+  }
+
+  if(phase===1){
+    // Apply formatos from last user message
+    var lastUser=getLastUserMsg();
+    var fmts=parseFormatos(lastUser);
+    if(fmts.length>0){
+      applyFormatos(fmts);
+      aiFlow.formatosSugeridos=fmts;
+      addMsg("Anoté los formatos: "+fmts.join(", ")+". Última pregunta: ¿dónde vas a usar el contenido?","bot");
+    } else {
+      addMsg("Entendido. ¿Dónde vas a usar el contenido?","bot");
+    }
+    aiFlow.phase=2;
+    showLoad();
+    callAI([{role:"user",content:sysPrompt("s3-canales")}]).then(function(r){
+      rmLoad();
+      addMsg(r,"bot");
+      aiHist.push({role:"assistant",content:r});
+      updateApplyButton();
+    }).catch(function(){
+      rmLoad();
+      addMsg("¿Dónde vas a distribuir el contenido? LinkedIn, Instagram, YouTube, Web, Pauta digital, etc.","bot");
+      updateApplyButton();
+    });
+    return;
+  }
+
+  if(phase===2){
+    // Apply canales from last user message
+    var lastUser2=getLastUserMsg();
+    var cans=parseCanales(lastUser2);
+    if(cans.length>0){
+      applyCanales(cans);
+      aiFlow.canalesSugeridos=cans;
+    }
+    aiFlow.phase=3;
+    ge("ai-bar").classList.remove("show");
+    var summary="¡Listo! Completé el formulario con:\n";
+    var carr=fd.carrito||[];
+    if(carr.length)summary+="• "+carr.length+" tipo"+(carr.length>1?"s":"")+" de piezas en el pedido\n";
+    if(fd.formatos&&fd.formatos.length)summary+="• Formatos: "+fd.formatos.join(", ")+"\n";
+    if(fd.canales&&fd.canales.length)summary+="• Canales: "+fd.canales.join(", ");
+    addMsg(summary,"bot");
+    addMsg("Podés cerrar el asistente y revisar todo en el formulario. Ajustá lo que necesites.","bot");
+    return;
+  }
+}
+
+function skipAIStep(){
+  if(aiCtx!=="s3")return;
+  var phase=aiFlow.phase;
+  if(phase===1){
+    // Skip formatos, go to canales
+    aiFlow.phase=2;
+    addMsg("Sin problema, podés completar los formatos directamente en el formulario. ¿Dónde vas a usar el contenido?","bot");
+    showLoad();
+    callAI([{role:"user",content:sysPrompt("s3-canales")}]).then(function(r){
+      rmLoad();addMsg(r,"bot");updateApplyButton();
+    }).catch(function(){
+      rmLoad();addMsg("¿Dónde vas a distribuir el contenido? LinkedIn, Instagram, YouTube, Web, etc.","bot");updateApplyButton();
+    });
+  } else if(phase===2){
+    // Skip canales, done
+    aiFlow.phase=3;
+    ge("ai-bar").classList.remove("show");
+    addMsg("Listo! Podés completar los canales directamente en el formulario cuando lo tengas definido.","bot");
+  }
+}
+
+function getLastUserMsg(){
+  var msgs=ge("ai-msgs");if(!msgs)return"";
+  var userMsgs=msgs.querySelectorAll(".ai-msg.usr");
+  if(!userMsgs.length)return"";
+  return userMsgs[userMsgs.length-1].textContent||"";
+}
+
 function sendMsg(msg){
   if(!msg){var inp=ge("ai-inp");msg=inp?inp.value.trim():"";if(!msg)return;if(inp)inp.value="";}
   addMsg(msg,"usr");aiHist.push({role:"user",content:msg});
   showLoad();
   var snd=ge("btn-send");if(snd)snd.disabled=true;
+
+  // In s3 guided flow, detect piece suggestions in free text
+  if(aiCtx==="s3"&&aiFlow.phase===0){
+    var sp3=sysPrompt("s3");
+    var msgs2=[{role:"user",content:sp3},{role:"assistant",content:"Entendido, voy a sugerir piezas basandome en el proyecto del cliente."}];
+    var hist=aiHist.slice(-4);
+    for(var i=0;i<hist.length;i++)msgs2.push(hist[i]);
+    msgs2.push({role:"user",content:msg});
+    callAI(msgs2).then(function(r){
+      rmLoad();if(snd)snd.disabled=false;
+      addMsg(r,"bot");aiHist.push({role:"assistant",content:r});
+      if(parsePiezas(r).length>0){
+        aiFlow.piezasSugeridas=r;
+        updateApplyButton();
+      }
+    }).catch(function(){rmLoad();if(snd)snd.disabled=false;addMsg("Hubo un problema al conectar con la IA. Intentalo nuevamente.","bot");});
+    return;
+  }
+
   var msgs=[{role:"user",content:sysPrompt(aiCtx)}];
   var hist=aiHist.slice(-6);
   for(var i=0;i<hist.length-1;i++)msgs.push(hist[i]);
   msgs.push({role:"user",content:msg});
-  callAI(msgs).then(function(r){rmLoad();if(snd)snd.disabled=false;addMsg(r,"bot");aiHist.push({role:"assistant",content:r});}).catch(function(){rmLoad();if(snd)snd.disabled=false;addMsg("Hubo un problema al conectar con la IA. Intentalo nuevamente.","bot");});
+  callAI(msgs).then(function(r){
+    rmLoad();if(snd)snd.disabled=false;
+    addMsg(r,"bot");aiHist.push({role:"assistant",content:r});
+    // For s3 phase 1 or 2, parse user response and update button
+    if(aiCtx==="s3"&&(aiFlow.phase===1||aiFlow.phase===2)){
+      updateApplyButton();
+    }
+  }).catch(function(){rmLoad();if(snd)snd.disabled=false;addMsg("Hubo un problema al conectar con la IA. Intentalo nuevamente.","bot");});
 }
+
 function callAI(messages){
   return fetch("/api/chat",{
     method:"POST",
@@ -748,6 +1062,7 @@ function callAI(messages){
   }).then(function(r){if(!r.ok)throw new Error("err "+r.status);return r.json();})
   .then(function(d){if(d.text)return d.text;throw new Error("no content");});
 }
+
 bn("btn-start",function(){initForm(null);});
 bn("btn-nav-ret",function(){go("v-retrieve");});
 bn("btn-nav-ret2",function(){go("v-retrieve");});
@@ -764,9 +1079,12 @@ bn("btn-ai-global",function(){openAI(aiCtx||"s"+step);});
 bn("btn-close-ai",closeAI);
 bn("ai-ov",closeAI);
 bn("btn-apply",applyAI);
+bn("btn-apply-skip",skipAIStep);
 bn("btn-send",function(){sendMsg(null);});
+
 var logos=["logo-home","logo-form","logo-prev","logo-conf","logo-ret","logo-proj"];
 logos.forEach(function(id){bn(id,function(e){e.preventDefault();go("v-home");});});
+
 var ri=ge("ret-input");
 if(ri){
   ri.addEventListener("input",function(){this.value=this.value.toUpperCase();});
